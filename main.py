@@ -69,7 +69,7 @@ def swing_targets(t: float) -> tuple[float, ...]:
     top_of_backswing = (
         -0.38, 0.08, -0.55, 0.57, -0.41, -1.20, -1.20, -0.64, -0.63, -0.25, 0.42, 0.20
     )
-    impact = (0.36, 0.55, -0.20, 0.0, -0.5, 0.5, 0.0, 0.0, -0.5, 0.5, 0.16, 0.28)
+    impact = (0.36, 0.30, -0.20, 0.0, -0.5, 0.5, 0.0, 0.0, -0.5, 0.5, 0.16, 0.28)
     finish = (0.42, 0.02, 0.18, -0.25, -1.05, -0.35, -0.15, 0.25, -1.05, -0.35, 0.10, 0.40)
 
     phase = min(max(t / SWING_DURATION, 0.0), 1.0)
@@ -125,8 +125,23 @@ def apply_controls(model: mujoco.MjModel, data: mujoco.MjData) -> None:
     data.ctrl[:] = targets
 
 
-def simulate(duration: float) -> dict[str, float | int | bool]:
+def simulate(
+    duration: float,
+    disturbance=None,
+    on_step=None,
+    timestep: float | None = None,
+) -> dict[str, float | int | bool]:
+    """Corre um swing sem janela e devolve as medicoes do impacto.
+
+    disturbance: funcao opcional f(model, data), chamada antes de cada passo,
+        que escreve binarios de perturbacao em data.qfrc_applied (Tarefa 2).
+    on_step: funcao opcional f(model, data, club_speed), chamada depois de
+        cada passo, para registar series temporais.
+    timestep: passo de integracao alternativo (teste de sensibilidade numerica).
+    """
     model, data = load_model()
+    if timestep is not None:
+        model.opt.timestep = timestep
     reset_swing(model, data)
     ball_id = body_id(model, "golf_ball")
     club_geom_id = mujoco.mj_name2id(
@@ -154,6 +169,8 @@ def simulate(duration: float) -> dict[str, float | int | bool]:
 
     while data.time < duration:
         apply_controls(model, data)
+        if disturbance is not None:
+            disturbance(model, data)
         mujoco.mj_step(model, data)
         mujoco.mj_objectVelocity(
             model,
@@ -164,6 +181,8 @@ def simulate(duration: float) -> dict[str, float | int | bool]:
             0,
         )
         club_speed = float(np.linalg.norm(club_velocity[3:]))
+        if on_step is not None:
+            on_step(model, data, club_speed)
         ball_speed = float(np.linalg.norm(data.cvel[ball_id][3:]))
         peak_club_speed = max(peak_club_speed, club_speed)
         peak_ball_speed = max(peak_ball_speed, ball_speed)

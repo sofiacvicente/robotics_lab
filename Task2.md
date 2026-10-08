@@ -16,24 +16,24 @@ Durante todo o swing, soma-se ao binário dos atuadores um binário de perturba�
 Para cada simulação, compara-se com o swing nominal: se ainda há impacto, a variação do instante de impacto, da velocidade da cabeça do taco, da velocidade de saída da bola e dos ângulos de elevação e de direção da bola (medidos 10 ms depois do impacto).
 
 **Resultado.**
-O taco acertou na bola em todas as 180 simulações, o instante de impacto mudou no máximo 0,8 ms e a velocidade do taco no impacto variou no máximo 2,5%. A trajetória da bola, pelo contrário, mostrou-se muito sensível. Com perturbação de 20%, as articulações mais críticas foram a elevação do ombro esquerdo (desvio médio de 61° na direção e 32% na velocidade da bola), a flexão do ombro direito (37° e 17%), o cotovelo direito (15° e 29%) e o pulso direito (11° e 24%). O pulso já provoca desvios de 3° e 7% na velocidade da bola com apenas 5% de perturbação. Os joelhos e o cotovelo esquerdo tiveram efeito desprezável: os joelhos porque a bacia está fixa ao mundo e as pernas não influenciam o taco. Mesmo assim, uma perturbação nos joelhos muda a velocidade da bola até 2%, o que dá uma ideia do ruído do próprio teste: um impacto ligeiramente diferente, resolvido em passos de 1 ms, já muda a saída da bola.
+O taco acertou na bola em todas as 180 simulações e o instante de impacto mudou no máximo 0,8 ms. A velocidade do taco no impacto variou em média até 7,5%, sobretudo porque o impacto cai num passo de 1 ms diferente numa altura em que o taco já está a travar contra o chão (ver Teste 5). A trajetória da bola mostrou-se muito mais sensível. Com perturbação de 20%, as articulações mais críticas foram a elevação do ombro esquerdo (desvio médio de 60° na direção e 31% na velocidade da bola), a flexão do ombro direito (36° e 17%), o cotovelo direito (14° e 19%) e o pulso direito (11° e 19%). O pulso já provoca desvios de 3° e 6% na velocidade da bola com apenas 5% de perturbação. Os joelhos tiveram efeito desprezável (menos de 0,2% na velocidade da bola), porque a bacia está fixa ao mundo e as pernas não influenciam o taco.
 
-Dois resultados merecem explicação. Primeiro, o braço esquerdo não está ligado ao taco, mas a mão esquerda encosta ao antebraço direito e transmite-lhe a perturbação por contacto, por isso o ombro esquerdo é a articulação mais crítica. Segundo, nos ombros o efeito cresce de forma muito não linear entre 10% e 20% (de 10° para 61° no ombro esquerdo), o que indica que o ponto de contacto na face do taco, com apenas 1,2 cm de espessura, muda de sítio.
+Dois resultados merecem explicação. Primeiro, o braço esquerdo não está ligado ao taco, mas a mão esquerda encosta ao antebraço direito e transmite-lhe a perturbação por contacto, por isso o ombro esquerdo é a articulação mais crítica. Segundo, nos ombros o efeito cresce de forma muito não linear entre 10% e 20% (de 9° para 60° no ombro esquerdo), o que indica que o ponto de contacto na face do taco, com apenas 1,2 cm de espessura, muda de sítio. O Teste 2 confirma esta sensibilidade: deslocar a bola 1 cm muda a sua velocidade de saída até 40%.
 
 | Articulação | Amplitude (N·m) | Desvio na direção (°) | Variação da velocidade da bola (%) | Variação da elevação (°) |
 | --- | ---: | ---: | ---: | ---: |
-| left_shoulder_lift | 12,7 | 61,0 | 31,8 | 20,8 |
-| right_shoulder | 14,3 | 37,4 | 16,9 | 14,7 |
-| right_elbow | 12,1 | 14,7 | 29,3 | 14,9 |
-| right_wrist_hinge | 13,8 | 11,3 | 23,7 | 10,6 |
-| right_shoulder_lift | 16,0 | 10,3 | 22,9 | 9,9 |
-| left_shoulder | 5,7 | 6,4 | 14,3 | 5,3 |
-| hip_flexion | 23,6 | 2,8 | 7,3 | 2,6 |
-| torso_rotation | 9,3 | 2,5 | 5,7 | 2,5 |
-| hip_rotation | 11,2 | 1,3 | 2,9 | 1,5 |
-| left_elbow | 1,4 | 0,7 | 2,0 | 0,8 |
-| right_knee | 0,8 | 0,5 | 1,2 | 0,6 |
-| left_knee | 0,7 | 0,1 | 0,3 | 0,1 |
+| left_shoulder_lift | 12,7 | 59,6 | 31,0 | 19,0 |
+| right_shoulder | 14,5 | 36,3 | 17,0 | 12,6 |
+| right_elbow | 12,3 | 13,9 | 19,3 | 14,6 |
+| right_wrist_hinge | 14,0 | 11,2 | 18,8 | 10,6 |
+| right_shoulder_lift | 16,0 | 10,2 | 15,7 | 10,0 |
+| left_shoulder | 5,7 | 7,0 | 12,7 | 6,4 |
+| torso_rotation | 9,3 | 2,7 | 5,2 | 2,6 |
+| hip_flexion | 25,9 | 2,4 | 3,8 | 2,5 |
+| left_elbow | 1,5 | 1,0 | 1,9 | 0,9 |
+| hip_rotation | 11,2 | 0,9 | 1,3 | 0,9 |
+| right_knee | 0,8 | 0,1 | 0,2 | 0,1 |
+| left_knee | 0,7 | 0,0 | 0,1 | 0,0 |
 
 Tabela 1 — Efeito médio de uma perturbação de 20% em cada articulação (média de 5 sementes, valores absolutos). Resultados completos em `results/perturbacoes_resumo.csv` e `results/perturbacoes_todas.csv`.
 
@@ -51,15 +51,17 @@ Simula-se o swing sem perturbações durante 4 s, para a bola ter tempo de parar
 Como o taco do modelo bate na bola pousada no chão, a comparação mais próxima é um ferro 7. Segundo os dados Trackman do PGA Tour, um ferro 7 é batido a cerca de 92 mph (41 m/s), a bola sai a cerca de 123 mph (55 m/s) [1], o *smash factor* é de cerca de 1,34 [2] e o ângulo de lançamento é de cerca de 16° [3]. O contacto entre o taco e a bola dura cerca de 0,5 ms [4].
 
 **Resultado.**
-Com o contacto rígido, a transferência de energia melhorou muito: o *smash factor* passou de 0,28 para 1,01, a bola sai a 11,5 m/s em vez de 3,2 m/s e o desvio em relação ao alvo desceu de 12,6° para 3,9°. A bola sobe 1,6 m e para a 24 m do jogador. Mesmo assim, o modelo continua aquém da realidade (Tabela 2). A cabeça do taco atinge só 28% da velocidade real, por isso a bola sai a 21% da velocidade real. O *smash factor* continua abaixo de 1,34, provavelmente porque a face do taco é uma caixa fina e leve (0,10 kg, contra cerca de 0,27 kg numa cabeça real) e bate na bola de forma oblíqua. A bola sai demasiado alta (28,6° contra 16°), porque o arco do taco desce abaixo do nível do chão e o ângulo de ataque é muito inclinado. O contacto dura 6 ms, 12 vezes mais do que na realidade: a rigidez escolhida é muito menor do que a de uma bola real, e uma rigidez maior exigiria um passo de integração mais pequeno.
+Com o contacto rígido, a transferência de energia melhorou muito: o *smash factor* passou de 0,28 para 1,18, a bola sai a 12,7 m/s em vez de 3,2 m/s e o desvio em relação ao alvo desceu de 12,6° para 1,6°. A bola sobe 1,6 m e para a 28 m do jogador. Mesmo assim, o modelo continua aquém da realidade (Tabela 2). A cabeça do taco atinge só 26% da velocidade real no impacto, por isso a bola sai a 23% da velocidade real. O *smash factor* continua abaixo de 1,34, provavelmente porque a face do taco é uma caixa fina e leve (0,10 kg, contra cerca de 0,27 kg numa cabeça real) e bate na bola de forma oblíqua. A bola sai demasiado alta (25,9° contra 16°), porque o arco do taco desce abaixo do nível do chão e o ângulo de ataque é muito inclinado. Pela mesma razão, o taco toca no chão antes da bola e já chega ao impacto a travar (10,7 m/s, contra um máximo de 12,0 m/s). O contacto dura 6 ms, 12 vezes mais do que na realidade: a rigidez escolhida é muito menor do que a de uma bola real, e uma rigidez maior exigiria um passo de integração mais pequeno.
+
+O resultado depende muito da posição da bola. Quando a cabeça do jogador foi colocada por cima do tronco (antes estava quase toda dentro dele), a inclinação do tronco mudou ligeiramente e o *smash factor* caiu para 0,80, com 15,7° de desvio. Deslocar a bola 5 mm para trás e 1 cm para o lado do pé direito repôs um contacto limpo. Num varrimento de ±1 cm em torno da posição original da bola, a velocidade de saída variou entre 4,7 e 14,3 m/s e a direção entre −7° e 29°.
 
 | Grandeza | Modelo (contacto rígido) | Modelo (contacto por omissão) | Referência real (ferro 7) |
 | --- | ---: | ---: | ---: |
-| Velocidade da cabeça do taco no impacto | 11,4 m/s | 11,4 m/s | ≈ 41 m/s |
-| Velocidade de saída da bola | 11,5 m/s | 3,2 m/s | ≈ 55 m/s |
-| *Smash factor* | 1,01 | 0,28 | ≈ 1,34 |
-| Ângulo de elevação da bola | 28,6° | 29,1° | ≈ 16° |
-| Desvio em relação ao alvo | 3,9° | 12,6° | ≈ 0° (bola direita) |
+| Velocidade da cabeça do taco no impacto | 10,7 m/s | 11,4 m/s | ≈ 41 m/s |
+| Velocidade de saída da bola | 12,7 m/s | 3,2 m/s | ≈ 55 m/s |
+| *Smash factor* | 1,18 | 0,28 | ≈ 1,34 |
+| Ângulo de elevação da bola | 25,9° | 29,1° | ≈ 16° |
+| Desvio em relação ao alvo | 1,6° | 12,6° | ≈ 0° (bola direita) |
 | Duração do contacto | 6 ms | 8 ms | ≈ 0,5 ms |
 
 Tabela 2 — Swing nominal comparado com valores reais. Resultados em `results/nominal.csv`.
@@ -78,7 +80,7 @@ No swing nominal, regista-se em cada passo o binário de cada atuador (`data.act
 Num estudo com 345 adultos saudáveis, o binário isométrico máximo do pulso em homens entre 20 e 29 anos foi de cerca de 14 N·m em flexão e 11 N·m em extensão [5].
 
 **Resultado.**
-Os maiores binários foram os da flexão da anca (118 N·m), da elevação do ombro direito (80 N·m), da flexão do ombro direito (71 N·m), do pulso direito (69 N·m) e do cotovelo direito (60 N·m). O caso mais claro é o do pulso: 69 N·m é cerca de cinco vezes o máximo de um adulto jovem. Isto acontece porque os atuadores de posição não têm limite de binário (`forcerange`) e fazem o binário que for preciso para seguir os alvos, o que torna o movimento fisicamente possível no simulador mas não num corpo humano.
+Os maiores binários foram os da flexão da anca (130 N·m), da elevação do ombro direito (80 N·m), da flexão do ombro direito (73 N·m), do pulso direito (70 N·m) e do cotovelo direito (62 N·m). O caso mais claro é o do pulso: 70 N·m é cerca de cinco vezes o máximo de um adulto jovem. Isto acontece porque os atuadores de posição não têm limite de binário (`forcerange`) e fazem o binário que for preciso para seguir os alvos, o que torna o movimento fisicamente possível no simulador mas não num corpo humano.
 
 
 
@@ -94,7 +96,7 @@ A partir da velocidade da cabeça do taco em cada passo, define-se o início do 
 A análise de vídeo de jogadores profissionais mostra que o backswing dura cerca de três vezes mais do que o downswing até ao impacto, uma razão de 3:1 [6]; por exemplo, cerca de 0,8 s de backswing e 0,27 s de downswing.
 
 **Resultado.**
-O swing começa aos 0,139 s, o topo é aos 1,006 s e o impacto aos 1,332 s, o que dá 0,867 s de backswing, 0,326 s de downswing e uma razão de 2,66:1. É o resultado mais próximo da realidade, tanto na proporção como nas durações absolutas. Note-se que o topo real acontece 0,15 s depois do topo dos alvos (0,86 s), o que mede o atraso dos atuadores em relação ao movimento pedido. O contacto da bola não altera este resultado, porque só atua a partir do impacto.
+O swing começa aos 0,139 s, o topo é aos 1,007 s e o impacto aos 1,333 s, o que dá 0,868 s de backswing, 0,326 s de downswing e uma razão de 2,66:1. É o resultado mais próximo da realidade, tanto na proporção como nas durações absolutas. Note-se que o topo real acontece 0,15 s depois do topo dos alvos (0,86 s), o que mede o atraso dos atuadores em relação ao movimento pedido. O contacto da bola não altera este resultado, porque só atua a partir do impacto.
 
 
 
@@ -107,12 +109,12 @@ Verificar se os resultados dependem do passo de integração escolhido.
 Repete-se o swing nominal com passos de 0,5 ms, 1 ms e 2 ms, mantendo o integrador RK4.
 
 **Resultado.**
-Entre 0,5 ms e 1 ms, o instante de impacto é o mesmo (1,332 s), a velocidade do taco varia 0,4%, a velocidade da bola 2,6% e os ângulos de saída cerca de 0,5°. O passo de 1 ms é, portanto, adequado, embora as grandezas que dependem do contacto sejam mais sensíveis do que as do movimento do corpo. Com 2 ms a simulação diverge logo nos primeiros passos, por causa dos ganhos elevados dos atuadores (kp = 1200 na flexão da anca).
+Entre 0,5 ms e 1 ms, o instante de impacto muda 1 ms (1,332 s e 1,333 s), a velocidade da bola varia 1,7% e os ângulos de saída menos de 0,5°. A velocidade do taco no impacto varia 5,6%: o taco já está a travar contra o chão, e um passo de diferença no instante do impacto basta para mudar a velocidade registada. O passo de 1 ms é, portanto, adequado para a saída da bola, mas a velocidade do taco no impacto só é conhecida com uma incerteza de alguns por cento. Com 2 ms a simulação diverge logo nos primeiros passos, por causa dos ganhos elevados dos atuadores (kp = 1200 na flexão da anca).
 
 | Passo | Impacto | Velocidade do taco | Velocidade da bola | Elevação | Direção |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| 0,5 ms | 1,332 s | 11,31 m/s | 11,80 m/s | 28,1° | 3,3° |
-| 1 ms | 1,332 s | 11,36 m/s | 11,50 m/s | 28,6° | 3,9° |
+| 0,5 ms | 1,332 s | 11,38 m/s | 12,47 m/s | 26,3° | 2,0° |
+| 1 ms | 1,333 s | 10,74 m/s | 12,68 m/s | 25,9° | 1,6° |
 | 2 ms | instável | — | — | — | — |
 
 Tabela 3 — Resultados do swing nominal com diferentes passos de integração. Resultados em `results/passo_integracao.csv`.

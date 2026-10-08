@@ -1,6 +1,6 @@
 # Simulação de um swing de golfe em MuJoCo
 
-Esta pasta contém a simulação simplificada de um swing de golfe em MuJoCo e Python. O modelo inclui a bacia, o tronco, os braços, as pernas articuladas, o taco e a bola.
+Esta pasta contém a simulação simplificada de um swing de golfe em MuJoCo e Python. O modelo inclui a bacia, o tronco com a cabeça, os braços, as pernas articuladas, o taco e a bola.
 
 ## Organização
 

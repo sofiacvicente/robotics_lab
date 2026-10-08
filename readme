@@ -78,7 +78,7 @@ Cada articulação é movida por um servo de posição (`position`) que segue um
 - **Braços.** Cada ombro tem 2 graus de liberdade (um ombro real tem 3) e cada cotovelo tem 1. O pulso direito tem uma única articulação; o pulso esquerdo e os dedos não são articulados.
 - **Mãos.** A mão esquerda não está ligada ao taco nem à mão direita; as poses só procuram aproximá-las. A mão esquerda pode tocar no antebraço direito e perturbar o taco por contacto.
 - **Taco.** O taco é rígido, sem flexão da haste, e está ligado só à mão direita. A haste é uma única geometria contínua, sem pega separada, e não colide com nada. A face de impacto é uma caixa fina com uma inclinação fixa e uma massa de 0,10 kg (uma cabeça real tem cerca de 0,27 kg).
-- **Contacto.** O contacto usa os parâmetros do MuJoCo por omissão, que são moles e dissipam a energia do choque. O contacto taco-bola dura demasiado tempo e a bola não ressalta, por isso o voo da bola não reproduz uma tacada real (Testes 2 e 6 da Task 2).
+- **Contacto.** A bola tem um contacto rígido (`solref="-200000 -70"`, coeficiente de restituição de cerca de 0,78), escolhido com o Teste 7 da Task 2. Mesmo assim, o contacto taco-bola dura cerca de 6 ms, 12 vezes mais do que na realidade. O contacto taco-chão usa os parâmetros do MuJoCo por omissão. O voo da bola não reproduz uma tacada real (Teste 2 da Task 2).
 - **Atuação.** Os atuadores seguem ângulos-alvo, sem limite de binário. Não se modelam músculos nem forças humanas, e o pulso chega a pedir binários sobre-humanos (Teste 3 da Task 2).
 - **Atrito nas articulações.** É modelado apenas por amortecimento viscoso (`damping`), sem atrito seco.
 

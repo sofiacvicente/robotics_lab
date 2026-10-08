@@ -195,7 +195,11 @@
                 <!-- Face de impacto: caixa invisivel de 8 cm x 2,4 cm x 1,2 cm
                      e 0,10 kg (uma cabeca real tem cerca de 0,27 kg). Rodada
                      80 graus em Y e 15 graus em Z para dar loft e para a bola
-                     sair a subir. E o unico geom do taco que colide (bola e chao). -->
+                     sair a subir. E o unico geom do taco que colide (bola e chao).
+                     Fica com o contacto por omissao: com o contacto rigido, a
+                     face, que comeca 0,6 mm dentro do chao, seria projetada e
+                     vibraria no inicio do swing. O contacto taco-bola e rigido
+                     na mesma, porque a bola o define (ver a bola, abaixo). -->
                 <geom name="club_face_collision" type="box" pos="0.04 0 -1.06"
                       euler="0 1.396263 0.261799"
                       size="0.04 0.012 0.006" mass="0.10"
@@ -238,12 +242,17 @@
     <!-- ===================== BOLA ===================== -->
     <!-- Bola regulamentar (diametro 42,7 mm, massa 45 g) pousada no chao, a
          1,16 m a frente do jogador. freejoint: 6 dof livres e nao atuados.
-         Usa o contacto por omissao do MuJoCo (solref="0.02 1"), que e mole e
-         criticamente amortecido: a bola nao ressalta (ver Teste 6). -->
+         Contacto rigido definido diretamente pela rigidez (200000 N/m) e pelo
+         amortecimento (70 N.s/m): solref negativo. Da um coeficiente de
+         restituicao de cerca de 0,78, proximo de uma bola real (Teste 7).
+         O contacto por omissao (solref="0.02 1") e mole e criticamente
+         amortecido: a bola nao ressaltava e o smash factor era de 0,28.
+         Quando um dos geoms tem solref negativo, o MuJoCo usa o minimo dos
+         dois, por isso os contactos bola-taco e bola-chao ficam rigidos. -->
     <body name="golf_ball" pos="1.156 0.013 0.021">
       <freejoint/>
       <geom name="ball" type="sphere" size="0.021" mass="0.045"
-            contype="2" conaffinity="5"
+            contype="2" conaffinity="5" solref="-200000 -70"
             friction="0.25 0.005 0.0001" rgba="1 1 1 1"/>
     </body>
   </worldbody>

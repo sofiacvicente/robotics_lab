@@ -13,7 +13,7 @@ try:
 except ModuleNotFoundError as exc:
     raise SystemExit(
         "MuJoCo não está instalado no Python atual. No WSL, execute:\n"
-        "python3 -m pip install -r requirements.txt"
+        "python3 -m pip install mujoco numpy matplotlib"
     ) from exc
 
 

@@ -1,9 +1,43 @@
+<!--
+  Modelo MuJoCo simplificado de um jogador de golfe + taco (Task 1).
+
+  Unidades: m, kg, s e rad.
+  Referencial do mundo: Z para cima, X para a frente do jogador (para a bola),
+  Y para o lado do pe esquerdo, que e tambem a direcao do alvo.
+
+  Arvore cinematica (12 graus de liberdade atuados, todos rotacionais):
+
+    mundo
+     └─ pelvis            hip_rotation (Z)            bacia presa ao mundo
+         ├─ left_leg      (fixa a bacia)
+         │   └─ left_lower_leg   left_knee (Y)
+         ├─ right_leg     (fixa a bacia)
+         │   └─ right_lower_leg  right_knee (Y)
+         └─ torso         hip_flexion (Y), torso_rotation (Z)
+             ├─ right_upper_arm  right_shoulder_lift (X), right_shoulder (Y)
+             │   └─ right_forearm   right_elbow (Y)
+             │       └─ right_hand
+             │           └─ club_wrist  right_wrist_hinge (Y)  -> taco
+             └─ left_upper_arm   left_shoulder_lift (X), left_shoulder (Y)
+                 └─ left_forearm    left_elbow (Y)
+                     └─ left_hand
+    golf_ball             freejoint (6 dof passivos)
+
+  Atrito nas articulacoes: modelado apenas por amortecimento viscoso
+  (atributo damping, em N.m.s/rad); nao ha atrito seco (frictionloss).
+  Atuacao: um servo de posicao por articulacao (secao <actuator> no fim).
+-->
 <mujoco model="golfer">
   <compiler angle="radian"/>
-  <!-- Unidades: m, kg, s e rad. -->
+
+  <!-- Gravidade terrestre. Passo de 1 ms com RK4: o Teste 5 mostra que 0,5 ms
+       e 1 ms dao o mesmo impacto e que com 2 ms a simulacao diverge (os
+       ganhos dos atuadores, sobretudo kp=1200 na anca, tornam o sistema rigido). -->
   <option gravity="0 0 -9.81" timestep="0.001" integrator="RK4"/>
+  <!-- Memoria reservada para contactos e restricoes. -->
   <size nconmax="200" njmax="1000"/>
 
+  <!-- Elementos apenas visuais: ceu em gradiente, camara e luz. -->
   <asset>
     <texture type="skybox" builtin="gradient"
              rgb1="0.72 0.87 0.98" rgb2="0.90 0.96 1.0"
@@ -16,15 +50,30 @@
                specular="0.1 0.1 0.1"/>
   </visual>
 
+  <!--
+    Grupos de colisao (contype/conaffinity). Dois geoms colidem se
+    (contype1 & conaffinity2) ou (contype2 & conaffinity1) for diferente de 0.
+      chao:            contype=1  conaffinity=6 (2|4) -> bola, face do taco, corpo
+      bola:            contype=2  conaffinity=5 (1|4) -> chao, face do taco, corpo
+      face do taco:    contype=4  conaffinity=2       -> bola, chao
+      corpo (omissao): contype=1  conaffinity=1       -> chao, bola, outras partes
+    As colisoes indesejadas entre partes do corpo sao retiradas em <contact>.
+  -->
   <worldbody>
+    <!-- Relva: plano de 10 m x 10 m. Atrito baixo (0.25) para a bola rolar. -->
     <geom name="ground" type="plane" size="5 5 0.1"
           contype="1" conaffinity="6"
           friction="0.25 0.005 0.0001" rgba="0.2 0.5 0.2 1"/>
 
-    <!-- Bacia fixa com rotacao; o tronco articula-se sobre ela. -->
+    <!-- ===================== BACIA ===================== -->
+    <!-- Referencial da bacia a 1,10 m do chao (altura da anca). Esta presa ao
+         mundo e so pode rodar em torno de Z: nao ha translacao, transferencia
+         de peso nem equilibrio. -->
     <body name="pelvis" pos="0 0 1.10">
+      <!-- Rotacao axial da bacia (+-31 graus). -->
       <joint name="hip_rotation" type="hinge" axis="0 0 1"
              damping="0.25" range="-0.55 0.55" limited="true"/>
+      <!-- Bacia: elipsoide de 8 kg; o MuJoCo calcula a inercia a partir da forma. -->
       <geom name="pelvis_geom" type="ellipsoid" pos="0 0 -0.20"
             size="0.12 0.20 0.13" mass="8" rgba="0.30 0.32 0.37 1"/>
       <!-- Marcador visual na frente da bacia (sem massa nem colisao) para se ver a rotacao das ancas. -->
@@ -32,20 +81,30 @@
             size="0.015 0.05 0.025" mass="0" contype="0" conaffinity="0"
             rgba="0.85 0.70 0.20 1"/>
 
+      <!-- ===================== PERNAS ===================== -->
+      <!-- Perna esquerda (+Y, lado do alvo). A coxa esta soldada a bacia (sem
+           articulacao da anca); so o joelho se articula. -->
       <body name="left_leg" pos="0 0.13 -0.20">
+        <!-- Coxa: capsula de 0,40 m e 5 kg. -->
         <geom name="left_upper_leg_geom" type="capsule" fromto="0 0 0 0 0 -0.40"
               size="0.075" mass="5" rgba="0.32 0.34 0.38 1"/>
+        <!-- Referencial da perna no joelho. -->
         <body name="left_lower_leg" pos="0 0 -0.40">
+          <!-- Joelho: flexao em torno de Y, de -9 a 52 graus. -->
           <joint name="left_knee" type="hinge" axis="0 1 0"
                  damping="0.3" range="-0.15 0.9" limited="true"/>
+          <!-- Perna: capsula de 0,36 m e 3 kg. -->
           <geom name="left_lower_leg_geom" type="capsule"
                 fromto="0 0 0 0 0 -0.36"
                 size="0.065" mass="3" rgba="0.32 0.34 0.38 1"/>
+          <!-- Pe rigido, sem tornozelo e sem colisao com o chao (a bacia
+               ja esta fixa, por isso o pe nao suporta o corpo). -->
           <geom name="left_foot_geom" type="box" pos="0.07 0 -0.43"
                 contype="0" conaffinity="0"
                 size="0.14 0.07 0.045" mass="1.2" rgba="0.12 0.12 0.13 1"/>
         </body>
       </body>
+      <!-- Perna direita (-Y): simetrica da esquerda. -->
       <body name="right_leg" pos="0 -0.13 -0.20">
         <geom name="right_upper_leg_geom" type="capsule" fromto="0 0 0 0 0 -0.40"
               size="0.075" mass="5" rgba="0.32 0.34 0.38 1"/>
@@ -61,87 +120,126 @@
         </body>
       </body>
 
+      <!-- ===================== TRONCO ===================== -->
+      <!-- O tronco tem duas articulacoes com o mesmo centro, 0,20 m abaixo da
+           origem da bacia: primeiro inclina-se para a frente (hip_flexion) e
+           depois roda em torno do seu eixo (torso_rotation). A coluna, o
+           pescoco e a cabeca formam um unico corpo rigido. -->
       <body name="torso" pos="0 0 0">
+        <!-- Flexao da anca: inclinacao do tronco, de -20 a 32 graus. -->
         <joint name="hip_flexion" type="hinge" axis="0 1 0" pos="0 0 -0.20"
                damping="0.4" range="-0.35 0.55" limited="true"/>
+        <!-- Rotacao do tronco relativamente a bacia (+-60 graus); a diferenca
+             entre esta e hip_rotation representa a separacao bacia-ombros. -->
         <joint name="torso_rotation" type="hinge" axis="0 0 1" pos="0 0 -0.20"
                damping="0.18" range="-1.05 1.05" limited="true"/>
-      <geom name="torso_geom" type="capsule" fromto="0 0 0.05 0 0 0.25"
-            size="0.18" mass="25" rgba="0.25 0.35 0.5 1"/>
+        <!-- Tronco: capsula de 25 kg. -->
+        <geom name="torso_geom" type="capsule" fromto="0 0 0.05 0 0 0.25"
+              size="0.18" mass="25" rgba="0.25 0.35 0.5 1"/>
+        <!-- Pescoco, cabeca e nariz: fixos ao tronco, contam para a massa e inercia. -->
+        <geom name="neck_geom" type="capsule" fromto="0 0 0.22 0 0 0.38"
+              size="0.065" mass="0.8" rgba="0.82 0.68 0.55 1"/>
+        <geom name="head_geom" type="ellipsoid" pos="0.015 0 0.39"
+              size="0.105 0.09 0.13" mass="4.5"
+              rgba="0.82 0.68 0.55 1"/>
+        <geom name="face_geom" type="capsule" fromto="0.09 -0.018 0.37 0.09 0.018 0.37"
+              size="0.018" mass="0.05" rgba="0.78 0.59 0.45 1"/>
 
-      <geom name="neck_geom" type="capsule" fromto="0 0 0.22 0 0 0.38"
-            size="0.065" mass="0.8" rgba="0.82 0.68 0.55 1"/>
-      <geom name="head_geom" type="ellipsoid" pos="0.015 0 0.39"
-            size="0.105 0.09 0.13" mass="4.5"
-            rgba="0.82 0.68 0.55 1"/>
-      <geom name="face_geom" type="capsule" fromto="0.09 -0.018 0.37 0.09 0.018 0.37"
-            size="0.018" mass="0.05" rgba="0.78 0.59 0.45 1"/>
-
-      <body name="right_upper_arm" pos="0.08 -0.22 0.18">
-        <joint name="right_shoulder_lift" type="hinge" axis="1 0 0"
-               damping="0.08" range="-0.9 0.9" limited="true"/>
-        <joint name="right_shoulder" type="hinge" axis="0 1 0"
-               damping="0.05" range="-1.8 1.8" limited="true"/>
+        <!-- ============ BRACO DIREITO (segura o taco) ============ -->
+        <!-- Referencial no ombro direito, a frente e a direita do tronco. -->
+        <body name="right_upper_arm" pos="0.08 -0.22 0.18">
+          <!-- Ombro com 2 dof (em vez de 3): elevacao/abducao em torno de X
+               (+-52 graus) e flexao/extensao em torno de Y (+-103 graus). -->
+          <joint name="right_shoulder_lift" type="hinge" axis="1 0 0"
+                 damping="0.08" range="-0.9 0.9" limited="true"/>
+          <joint name="right_shoulder" type="hinge" axis="0 1 0"
+                 damping="0.05" range="-1.8 1.8" limited="true"/>
+          <!-- Braco: capsula de 0,29 m e 2 kg, inclinada para o centro do corpo. -->
           <geom name="right_upper_arm_geom" type="capsule"
-            fromto="0 0 0 0 0.10 -0.27" size="0.047" mass="2.0"
-              rgba="0.85 0.65 0.45 1"/>
-
-        <body name="right_forearm" pos="0 0.10 -0.27">
-          <joint name="right_elbow" type="hinge" axis="0 1 0"
-                 damping="0.10" range="-2.6 0.45" limited="true"/>
-          <geom name="right_forearm_geom" type="capsule"
-                fromto="0 0 0 0 0.08 -0.25" size="0.040" mass="1.2"
+                fromto="0 0 0 0 0.10 -0.27" size="0.047" mass="2.0"
                 rgba="0.85 0.65 0.45 1"/>
 
-          <body name="right_hand" pos="0 0.08 -0.25">
-            <geom name="right_hand_geom" type="ellipsoid" size="0.075 0.045 0.045"
-                  mass="0.45" rgba="0.85 0.65 0.45 1"/>
-            <body name="club_wrist" pos="0 0 0">
-              <joint name="right_wrist_hinge" type="hinge" axis="0 1 0"
-                     damping="0.08" range="-2.8 2.8" limited="true"/>
-              <geom name="club_shaft" type="capsule"
-                    fromto="0 0 0 0 0 -1.06" size="0.008" mass="0.30"
-                    contype="0" conaffinity="0" rgba="0.2 0.3 0.8 1"/>
-              <geom name="club_head" type="box" pos="0.04 0 -1.06"
-                    size="0.04 0.012 0.006" mass="0"
-                    contype="0" conaffinity="0"
-                    rgba="0.15 0.15 0.18 1"/>
-              <geom name="club_face_collision" type="box" pos="0.04 0 -1.06"
-                    euler="0 1.396263 0.261799"
-                    size="0.04 0.012 0.006" mass="0.10"
-                    contype="4" conaffinity="2"
-                    friction="0.05 0.005 0.0001" rgba="0.15 0.15 0.18 0"/>
+          <!-- Referencial no cotovelo direito. -->
+          <body name="right_forearm" pos="0 0.10 -0.27">
+            <!-- Cotovelo: flexao em torno de Y, de -149 a 26 graus. -->
+            <joint name="right_elbow" type="hinge" axis="0 1 0"
+                   damping="0.10" range="-2.6 0.45" limited="true"/>
+            <!-- Antebraco: capsula de 0,26 m e 1,2 kg. -->
+            <geom name="right_forearm_geom" type="capsule"
+                  fromto="0 0 0 0 0.08 -0.25" size="0.040" mass="1.2"
+                  rgba="0.85 0.65 0.45 1"/>
+
+            <!-- Mao direita (sem dedos), solidaria com o antebraco. -->
+            <body name="right_hand" pos="0 0.08 -0.25">
+              <geom name="right_hand_geom" type="ellipsoid" size="0.075 0.045 0.045"
+                    mass="0.45" rgba="0.85 0.65 0.45 1"/>
+
+              <!-- ================ TACO ================ -->
+              <!-- Referencial do taco na mao direita. O pulso tem um unico dof
+                   (o "wrist hinge" do swing); faltam o desvio radial/cubital e
+                   a pronacao. O taco e rigido e esta ligado so a mao direita. -->
+              <body name="club_wrist" pos="0 0 0">
+                <!-- Pulso: armar/libertar o taco em torno de Y (+-160 graus). -->
+                <joint name="right_wrist_hinge" type="hinge" axis="0 1 0"
+                       damping="0.08" range="-2.8 2.8" limited="true"/>
+                <!-- Haste: cilindro de 1,06 m e 0,30 kg, ao longo de -Z.
+                     Sem colisoes, para nao bater no corpo nem no chao. -->
+                <geom name="club_shaft" type="capsule"
+                      fromto="0 0 0 0 0 -1.06" size="0.008" mass="0.30"
+                      contype="0" conaffinity="0" rgba="0.2 0.3 0.8 1"/>
+                <!-- Cabeca do taco visivel: so visual (sem massa nem colisao). -->
+                <geom name="club_head" type="box" pos="0.04 0 -1.06"
+                      size="0.04 0.012 0.006" mass="0"
+                      contype="0" conaffinity="0"
+                      rgba="0.15 0.15 0.18 1"/>
+                <!-- Face de impacto: caixa invisivel de 8 cm x 2,4 cm x 1,2 cm
+                     e 0,10 kg (uma cabeca real tem cerca de 0,27 kg). Rodada
+                     80 graus em Y e 15 graus em Z para dar loft e para a bola
+                     sair a subir. E o unico geom do taco que colide (bola e chao). -->
+                <geom name="club_face_collision" type="box" pos="0.04 0 -1.06"
+                      euler="0 1.396263 0.261799"
+                      size="0.04 0.012 0.006" mass="0.10"
+                      contype="4" conaffinity="2"
+                      friction="0.05 0.005 0.0001" rgba="0.15 0.15 0.18 0"/>
+              </body>
             </body>
           </body>
-          </body>
         </body>
 
-      <!-- Braco esquerdo. -->
-      <body name="left_upper_arm" pos="0.08 0.22 0.18">
-        <joint name="left_shoulder_lift" type="hinge" axis="1 0 0"
-               damping="0.08" range="-0.9 0.9" limited="true"/>
-        <joint name="left_shoulder" type="hinge" axis="0 1 0"
-               damping="0.05" range="-1.8 1.8" limited="true"/>
+        <!-- ============ BRACO ESQUERDO (apoio) ============ -->
+        <!-- Simetrico do direito. A mao esquerda NAO esta presa ao taco: as
+             poses so a mantem perto da mao direita, e o contacto com o
+             antebraco direito pode transmitir forcas ao taco (ver Teste 1). -->
+        <body name="left_upper_arm" pos="0.08 0.22 0.18">
+          <joint name="left_shoulder_lift" type="hinge" axis="1 0 0"
+                 damping="0.08" range="-0.9 0.9" limited="true"/>
+          <joint name="left_shoulder" type="hinge" axis="0 1 0"
+                 damping="0.05" range="-1.8 1.8" limited="true"/>
           <geom name="left_upper_arm_geom" type="capsule"
-            fromto="0 0 0 0 -0.10 -0.27" size="0.047" mass="2.0"
-              rgba="0.85 0.65 0.45 1"/>
-
-        <body name="left_forearm" pos="0 -0.10 -0.27">
-          <joint name="left_elbow" type="hinge" axis="0 1 0"
-                 damping="0.10" range="-2.6 0.45" limited="true"/>
-          <geom name="left_forearm_geom" type="capsule"
-                fromto="0 0 0 0 -0.08 -0.25" size="0.040" mass="1.2"
+                fromto="0 0 0 0 -0.10 -0.27" size="0.047" mass="2.0"
                 rgba="0.85 0.65 0.45 1"/>
-          <body name="left_hand" pos="0 -0.08 -0.25">
-            <geom name="left_hand_geom" type="ellipsoid"
-                  size="0.075 0.045 0.045" mass="0.45"
+
+          <body name="left_forearm" pos="0 -0.10 -0.27">
+            <joint name="left_elbow" type="hinge" axis="0 1 0"
+                   damping="0.10" range="-2.6 0.45" limited="true"/>
+            <geom name="left_forearm_geom" type="capsule"
+                  fromto="0 0 0 0 -0.08 -0.25" size="0.040" mass="1.2"
                   rgba="0.85 0.65 0.45 1"/>
+            <body name="left_hand" pos="0 -0.08 -0.25">
+              <geom name="left_hand_geom" type="ellipsoid"
+                    size="0.075 0.045 0.045" mass="0.45"
+                    rgba="0.85 0.65 0.45 1"/>
+            </body>
           </body>
         </body>
-      </body>
       </body> <!-- fim do tronco: os dois bracos pertencem ao tronco -->
-    </body>
+    </body> <!-- fim da bacia -->
 
+    <!-- ===================== BOLA ===================== -->
+    <!-- Bola regulamentar (diametro 42,7 mm, massa 45 g) pousada no chao, a
+         1,16 m a frente do jogador. freejoint: 6 dof livres e nao atuados.
+         Usa o contacto por omissao do MuJoCo (solref="0.02 1"), que e mole e
+         criticamente amortecido: a bola nao ressalta (ver Teste 6). -->
     <body name="golf_ball" pos="1.156 0.013 0.021">
       <freejoint/>
       <geom name="ball" type="sphere" size="0.021" mass="0.045"
@@ -150,10 +248,18 @@
     </body>
   </worldbody>
 
+  <!-- Pares de corpos que nao colidem entre si. Como as formas sao simples e
+       as articulacoes sao poucas, as capsulas dos bracos, do tronco e das
+       pernas sobrepoem-se durante o swing; sem estas exclusoes, os contactos
+       travariam o movimento. Excluem-se tambem bola-pernas. Ficam ativos, por
+       exemplo, mao esquerda-antebraco direito e bola-maos. -->
   <contact>
+    <!-- Maos entre si. -->
     <exclude body1="right_hand" body2="left_hand"/>
+    <!-- Bola com as coxas. -->
     <exclude body1="golf_ball" body2="left_leg"/>
     <exclude body1="golf_ball" body2="right_leg"/>
+    <!-- Bracos com tronco, bacia, pernas e entre si. -->
     <exclude body1="right_upper_arm" body2="torso"/>
     <exclude body1="left_upper_arm" body2="torso"/>
     <exclude body1="right_upper_arm" body2="pelvis"/>
@@ -163,11 +269,14 @@
     <exclude body1="left_upper_arm" body2="left_leg"/>
     <exclude body1="left_upper_arm" body2="right_leg"/>
     <exclude body1="right_upper_arm" body2="left_upper_arm"/>
+    <!-- Antebracos e mao direita com o tronco. -->
     <exclude body1="right_forearm" body2="torso"/>
     <exclude body1="left_forearm" body2="torso"/>
     <exclude body1="right_hand" body2="torso"/>
+    <!-- Bola com as pernas. -->
     <exclude body1="golf_ball" body2="left_lower_leg"/>
     <exclude body1="golf_ball" body2="right_lower_leg"/>
+    <!-- Bracos, antebracos e mao direita com as pernas. -->
     <exclude body1="right_upper_arm" body2="left_lower_leg"/>
     <exclude body1="right_upper_arm" body2="right_lower_leg"/>
     <exclude body1="left_upper_arm" body2="left_lower_leg"/>
@@ -185,33 +294,51 @@
     <exclude body1="left_forearm" body2="right_leg"/>
     <exclude body1="right_hand" body2="left_leg"/>
     <exclude body1="right_hand" body2="right_leg"/>
+    <!-- Bracos entre si e com a bacia. -->
     <exclude body1="left_forearm" body2="right_hand"/>
     <exclude body1="left_forearm" body2="pelvis"/>
     <exclude body1="right_hand" body2="pelvis"/>
     <exclude body1="right_forearm" body2="left_forearm"/>
   </contact>
 
+  <!--
+    Atuadores: um servo de posicao (PD) por articulacao, com
+      binario = kp * (ctrl - q) - kv * dq   [N.m]
+    O ctrl e o angulo-alvo (rad) enviado pelo main.py em cada passo;
+    ctrlrange limita os alvos a amplitude da articulacao. kp esta em N.m/rad
+    e kv em N.m.s/rad; quando kv nao e indicado vale 0.
+    NAO ha forcerange: o binario nao tem limite, por isso o modelo pode pedir
+    mais binario do que um humano consegue produzir (ver Teste 3).
+    Ganhos mais altos nas articulacoes que carregam mais massa (anca, ombros).
+  -->
   <actuator>
+    <!-- Bacia e tronco. -->
     <position name="hip_motor" joint="hip_rotation" kp="180" kv="24"
               ctrlrange="-0.55 0.55"/>
+    <!-- Muito rigido: segura os 25 kg do tronco inclinado contra a gravidade. -->
     <position name="hip_flexion_motor" joint="hip_flexion" kp="1200" kv="80"
               ctrlrange="-0.35 0.55"/>
+    <!-- Sem kv: o amortecimento vem so do damping da articulacao. -->
     <position name="torso_motor" joint="torso_rotation" kp="100"
               ctrlrange="-1.05 1.05"/>
+    <!-- Braco direito e pulso (cadeia que move o taco). -->
     <position name="right_shoulder_lift_motor" joint="right_shoulder_lift"
               kp="120" kv="20" ctrlrange="-0.9 0.9"/>
     <position name="right_shoulder_motor" joint="right_shoulder" kp="160"
               kv="24" ctrlrange="-1.8 1.8"/>
+    <!-- ctrlrange chega a 0.8, mas a articulacao para em 0.45 (range). -->
     <position name="right_elbow_motor" joint="right_elbow" kp="150" kv="22"
               ctrlrange="-2.6 0.8"/>
     <position name="right_wrist_hinge_motor" joint="right_wrist_hinge"
               kp="100" kv="16" ctrlrange="-2.8 2.8"/>
+    <!-- Braco esquerdo. -->
     <position name="left_shoulder_lift_motor" joint="left_shoulder_lift"
               kp="120" kv="20" ctrlrange="-0.9 0.9"/>
     <position name="left_shoulder_motor" joint="left_shoulder" kp="180" kv="26"
               ctrlrange="-1.8 1.8"/>
     <position name="left_elbow_motor" joint="left_elbow" kp="180" kv="26"
               ctrlrange="-2.6 0.8"/>
+    <!-- Joelhos: ganhos baixos, porque as pernas nao suportam peso. -->
     <position name="left_knee_motor" joint="left_knee" kp="100" kv="18"
               ctrlrange="-0.15 0.9"/>
     <position name="right_knee_motor" joint="right_knee" kp="100" kv="18"

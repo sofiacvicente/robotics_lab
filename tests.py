@@ -6,6 +6,7 @@ Testes:
     4. Ritmo do swing (razao backswing/downswing)
     5. Sensibilidade ao passo de integracao
     6. Validacao basica: pendulo simples e ressalto da bola
+    7. Pendulo a bater na bola com diferentes parametros de contacto
 
  A direcao do alvo e +Y (o lado do pe esquerdo).
 """
@@ -477,6 +478,110 @@ def test_validation(out: Path) -> None:
     write_csv(out / "validacao_ressalto.csv", [bounce])
 
 
+
+# Teste 7: pendulo a bater na bola (dica 1 do enunciado)
+PENDULUM_BALL_XML = """
+<mujoco model="pendulo_bola">
+  <!-- Mesmas opcoes de integracao que o modelo do jogador. -->
+  <option gravity="0 0 -9.81" timestep="0.001" integrator="RK4"/>
+  <worldbody>
+    <geom name="ground" type="plane" size="2 2 0.1" contype="1" conaffinity="1"
+          friction="0.25 0.005 0.0001"/>
+    <!-- Pendulo de {length} m cuja massa e uma esfera do tamanho da bola, com a
+         massa da face do taco do modelo. So colide com a bola (grupo 2). -->
+    <body name="arm" pos="0 0 {pivot}">
+      <joint name="hinge" type="hinge" axis="0 1 0"/>
+      <geom type="capsule" fromto="0 0 0 0 0 -{length}" size="0.004" mass="0"
+            contype="0" conaffinity="0"/>
+      <geom name="bob" type="sphere" pos="0 0 -{length}" size="0.021" mass="{bob_mass}"
+            contype="2" conaffinity="2" solref="{solref}"/>
+      <site name="bob_center" pos="0 0 -{length}"/>
+    </body>
+    <!-- Bola igual a do modelo, pousada no chao e encostada ao pendulo em repouso:
+         o choque e central e horizontal. -->
+    <body name="golf_ball" pos="0.043 0 0.021">
+      <freejoint/>
+      <geom name="ball" type="sphere" size="0.021" mass="0.045" contype="3" conaffinity="3"
+            friction="0.25 0.005 0.0001" solref="{solref}"/>
+    </body>
+  </worldbody>
+</mujoco>
+"""
+
+# Parametros de contacto comparados. Um solref negativo da diretamente a rigidez
+# (N/m) e o amortecimento (N.s/m) da mola do contacto.
+CONTACT_CASES = {
+    "omissao (0.02 1)": "0.02 1",
+    "rigido elastico (-200000 -5)": "-200000 -5",
+    "rigido, e~0.78 (-200000 -70)": "-200000 -70",
+}
+
+
+def pendulum_hits_ball(solref: str, amplitude_rad: float, bob_mass: float = 0.10,
+                       length: float = 1.0, ball_mass: float = 0.045) -> dict[str, float]:
+    model = mujoco.MjModel.from_xml_string(
+        PENDULUM_BALL_XML.format(length=length, pivot=length + 0.021, bob_mass=bob_mass, solref=solref)
+    )
+    data = mujoco.MjData(model)
+    data.qpos[0] = amplitude_rad
+    mujoco.mj_forward(model, data)
+    bob_geom, ball_geom = model.geom("bob").id, model.geom("ball").id
+    site = model.site("bob_center").id
+    vel = np.zeros(6)
+
+    def bob_speed() -> float:
+        # velocidade linear (x) do centro da massa do pendulo
+        mujoco.mj_objectVelocity(model, data, mujoco.mjtObj.mjOBJ_SITE, site, vel, 0)
+        return float(vel[3])
+
+    start = None
+    while data.time < 5.0:
+        before = bob_speed()
+        mujoco.mj_step(model, data)
+        touching = any(
+            {c.geom1, c.geom2} == {bob_geom, ball_geom} for c in data.contact[: data.ncon]
+        )
+        if touching and start is None:
+            start, v_bob_before = data.time, before
+        elif start is not None and not touching:
+            v_bob_after, v_ball_after = bob_speed(), float(data.qvel[1])
+            break
+    else:
+        raise RuntimeError("o pendulo nao chegou a separar-se da bola")
+
+    v_theory = math.sqrt(2 * 9.81 * length * (1 - math.cos(amplitude_rad)))
+    return {
+        "bob_speed_before_m_s": v_bob_before,
+        "bob_speed_theory_m_s": v_theory,
+        "bob_speed_after_m_s": v_bob_after,
+        "ball_speed_after_m_s": v_ball_after,
+        # coeficiente de restituicao: velocidade de afastamento / velocidade de aproximacao
+        "restitution": (v_ball_after - v_bob_after) / v_bob_before,
+        # equivalente ao smash factor; num choque perfeitamente elastico vale 2M/(M+m)
+        "ball_bob_speed_ratio": v_ball_after / v_bob_before,
+        "elastic_ratio_theory": 2 * bob_mass / (bob_mass + ball_mass),
+        "momentum_change_pct": 100 * ((bob_mass * v_bob_after + ball_mass * v_ball_after)
+                                      / (bob_mass * v_bob_before) - 1),
+        "contact_duration_ms": 1000 * (data.time - start),
+    }
+
+
+def test_pendulum_ball(out: Path) -> None:
+    print("\n[7] Pendulo a bater na bola (massa do pendulo = face do taco, 0,10 kg)")
+    rows = []
+    for label, solref in CONTACT_CASES.items():
+        for amp_deg in (30, 90):
+            r = pendulum_hits_ball(solref, math.radians(amp_deg))
+            rows.append({"contact": label, "solref": solref, "amplitude_deg": amp_deg, **r})
+            print(
+                f"  {label:30s} {amp_deg:2d}°: v_pendulo={r['bob_speed_before_m_s']:.2f} m/s "
+                f"(teoria {r['bob_speed_theory_m_s']:.2f}), v_bola={r['ball_speed_after_m_s']:.2f} m/s, "
+                f"e={r['restitution']:.2f}, razao={r['ball_bob_speed_ratio']:.2f} "
+                f"(elastico {r['elastic_ratio_theory']:.2f}), contacto={r['contact_duration_ms']:.0f} ms"
+            )
+    write_csv(out / "validacao_pendulo_bola.csv", rows)
+
+
 TESTS = {
     1: test_perturbations,
     2: test_nominal,
@@ -484,6 +589,7 @@ TESTS = {
     4: test_tempo,
     5: test_timestep,
     6: test_validation,
+    7: test_pendulum_ball,
 }
 
 

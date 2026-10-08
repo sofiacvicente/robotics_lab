@@ -1,47 +1,23 @@
-Teste 1 — Perturbações em cada grau de liberdade
+# Task 3 — Comentário aos resultados
+O modelo reproduz bem a **cinemática e o ritmo** do swing, mas falha na **transferência de energia para a bola**. As causas principais estão identificadas, e quase todas são escolhas de modelação que se podem corrigir.
 
-Objetivo
-    Avaliar como uma perturbação em cada uma das 12 articulações afeta o impacto e a saída da bola. 
+**Pontos fortes.**
+O simulador está validado: o período do pêndulo difere 0,05% da teoria a 5°, e a 30° difere 1,74%, que é o que a correção para grandes amplitudes prevê (1,71%). O passo de 1 ms é adequado, porque com 0,5 ms o instante de impacto é o mesmo e a velocidade do taco muda 0,6%. O ritmo é o resultado mais realista: a razão backswing:downswing é de 2,66:1, perto do 3:1 dos profissionais, e as durações (0,87 s e 0,33 s) são da ordem das reais (0,8 s e 0,27 s). O swing é robusto ao nível do impacto: nas 180 simulações com tremor, o taco acertou sempre na bola e a sua velocidade variou no máximo 1,8%. O teste de perturbações também identifica as articulações críticas (ombros e pulso) e as irrelevantes (joelhos e flexão da anca), uma hierarquia que faz sentido num jogador real.
 
-Procedimento
-    Durante todo o swing, soma-se ao binário dos atuadores um binário de perturbação numa única articulação, através de data.qfrc_applied. A perturbação imita um tremor: uma sinusoide com frequência sorteada entre 8 e 12 Hz e fase aleatória. A amplitude é definida em percentagem do binário máximo que a própria articulação usa no swing nominal (5%, 10% e 20%), porque as escalas são muito diferentes entre articulações (de menos de 1 N·m nos joelhos a cerca de 70 N·m no pulso). Cada combinação articulação × amplitude é repetida com 5 sementes aleatórias, num total de 180 simulações. 
+**Pontos fracos.**
+1. *Impacto pouco realista.* A cabeça do taco atinge 11,4 m/s (28% de um ferro 7 real) e a bola sai a 3,2 m/s (6%). O *smash factor* é de 0,28, contra 1,34. O contacto dura 8 ms em vez de cerca de 0,5 ms e a bola não ressalta no chão. A causa é o contacto do MuJoCo por omissão (`solref="0.02 1"`), que é mole e criticamente amortecido: dissipa a energia em vez de a devolver. A cabeça do taco também pesa só 0,10 kg (uma real tem cerca de 0,27 kg) e é mais leve do que a haste.
+2. *Bola desviada.* A bola sai com 29° de elevação (real: cerca de 16°) e 12,6° fora do alvo. Isto resulta da face fixa e simplificada e do arco do taco, que desce abaixo do nível do chão.
+3. *Binários sobre-humanos.* O pulso chega a 69 N·m, cerca de cinco vezes o máximo de um adulto jovem. Os servos de posição não têm `forcerange` e fazem o binário que for preciso: o movimento é possível no simulador, mas não num corpo humano.
+4. *Sensibilidade excessiva da direção da bola.* Com 20% de tremor no ombro esquerdo, a direção desvia em média 43°. Parte deste efeito é artificial: a mão esquerda não está presa ao taco e perturba-o por contacto com o antebraço direito. Além disso, a face do taco tem só 1,2 cm de espessura, e um ponto de contacto ligeiramente diferente muda muito a saída da bola.
+5. *Simplificações do corpo.* A bacia está fixa ao mundo e os pés não tocam no chão, por isso não há transferência de peso nem equilíbrio. As pernas acabam por não ter qualquer efeito no taco, o que contraria a cadeia "pés → pernas → tronco → braços" da Figura 1 do enunciado.
+6. *Estabilidade numérica.* Com um passo de 2 ms a simulação diverge, por causa dos ganhos elevados (kp = 1200 na flexão da anca).
 
-Métricas
- Para cada simulação, compara-se com o swing nominal: se ainda há impacto, a variação do instante de impacto, da velocidade da cabeça do taco, da velocidade de saída da bola e dos ângulos de elevação e de direção da bola (medidos 10 ms depois do impacto). 
+**Melhorias propostas.**
+- Usar um contacto rígido entre o taco e a bola. O Teste 7 (pêndulo a bater na bola) já o confirma: com o contacto por omissão, *e* ≈ 0,2; com `solref="-200000 -70"`, *e* ≈ 0,78, perto de uma bola real.
+- Dar à cabeça do taco uma massa realista (cerca de 0,27 kg) e uma face com loft definido.
+- Prender a mão esquerda ao taco com uma restrição `weld`.
+- Limitar os binários com `forcerange` a valores humanos.
+- Libertar a bacia e pôr os pés em contacto com o chão.
 
-Resultado
-    O taco acertou na bola em todas as 180 simulações, e a velocidade do taco no impacto variou no máximo 1,8%. A trajetória da bola, pelo contrário, mostrou-se muito sensível. Com perturbação de 20%, as articulações mais críticas foram a elevação do ombro esquerdo (desvio médio de 43° na direção e 28% na velocidade da bola) e a flexão do ombro direito (22° e 17%). O pulso direito provocou desvios de 4° a 7° já desde os 5% de perturbação. Os joelhos e a flexão da anca tiveram efeito desprezável: os joelhos porque a bacia está fixa ao mundo e as pernas não influenciam o taco, e a flexão da anca porque o seu atuador é muito rígido. Dois resultados merecem nota. Primeiro, o braço esquerdo não está ligado ao taco, mas a mão esquerda encosta ao antebraço direito e transmite-lhe a perturbação por contacto. Segundo, nos ombros o efeito cresce de forma muito não linear entre 10% e 20% (de cerca de 6° para 43° no ombro esquerdo), o que indica que o ponto de contacto na face do taco, com apenas 1,2 cm de espessura, muda de sítio.
-
-
-
-Teste 2 — Swing nominal comparado com um swing real
-
-Objetivo
-    Comparar as grandezas do impacto com valores medidos em jogadores reais.
-
-Procedimento
-    Simula-se o swing sem perturbações durante 4 s, para a bola ter tempo de parar, e regista-se a velocidade da cabeça do taco no impacto, a velocidade e os ângulos de saída da bola 10 ms depois do impacto, o smash factor (velocidade da bola a dividir pela velocidade do taco) e a duração do contacto entre o taco e a bola.
-    
-Referência
-    Como o taco do modelo bate na bola pousada no chão, a comparação mais próxima é um ferro 7. Segundo os dados Trackman do PGA Tour, um ferro 7 é batido a cerca de 92 mph (41 m/s), a bola sai a cerca de 123 mph (55 m/s), o smash factor é de cerca de 1,34 e o ângulo de lançamento é de cerca de 16°. O contacto entre o taco e a bola dura cerca de 0,5 ms.
-
-Resultado
-    O modelo fica muito aquém (Tabela 2). A cabeça do taco atinge cerca de 28% da velocidade real e a bola apenas 6%, ou seja, a transferência de energia é muito ineficiente (smash factor de 0,28 contra 1,34). O contacto dura 8 ms, 16 vezes mais do que na realidade, o que mostra que o taco empurra a bola em vez de lhe bater. A bola sai demasiado alta e 12,6° desviada do alvo. As causas mais prováveis são o contacto do MuJoCo, que por omissão é mole e não devolve energia (ver Teste 6), a geometria da cabeça do taco (uma caixa fina, mais leve do que a haste) e o ângulo de ataque muito inclinado, porque o arco do taco desce abaixo do nível do chão.
-
-
-Teste 3 — Binários usados comparados com a capacidade humana
-
-Objetivo
-    Verificar se os atuadores pedem às articulações binários que um humano consegue produzir.
-
-Procedimento
-    No swing nominal, regista-se em cada passo o binário de cada atuador (data.actuator_force) e guarda-se o máximo em valor absoluto. 
-
-Referência
-    Num estudo com 345 adultos saudáveis, o binário isométrico máximo do pulso em homens entre 20 e 29 anos foi de cerca de 14 N·m em flexão e 11 N·m em extensão
-
-Resultado
-    Os maiores binários foram os da flexão da anca (118 N·m), da elevação do ombro direito (80 N·m), da flexão do ombro direito (72 N·m), do pulso direito (69 N·m) e do cotovelo direito (61 N·m). O caso mais claro é o do pulso: 69 N·m é cerca de cinco vezes o máximo de um adulto jovem. Isto acontece porque os atuadores de posição não têm limite de binário (forcerange) e fazem o binário que for preciso para seguir os alvos, o que torna o movimento fisicamente possível no simulador mas não num corpo humano.
-
-
-
+**Conclusão.**
+O modelo é adequado para estudar a **sequência e o ritmo do movimento** e a **sensibilidade relativa de cada articulação** a perturbações. Ainda não serve para prever a distância nem a direção da bola, porque estas grandezas dependem sobretudo do modelo de contacto e da massa da cabeça do taco, que são as primeiras coisas a corrigir.

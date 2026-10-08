@@ -1,87 +1,85 @@
-requesitos 
-mujoco
-numpy
+# Simulação de um swing de golfe em MuJoCo
 
-explicação do codigo gerada pelo chat pois estava com perguiça de o escrever, usei duck.ai para debug e o copilot para apoio de codigo mas os graus e por ai fora foram pensados por mim 
+Esta pasta contém a simulação simplificada de um swing de golfe em MuJoCo e Python. O modelo inclui a bacia, o tronco, os braços, as pernas articuladas, o taco e a bola.
 
-07/10: sofs - meti o boneco mais direito porque os bracos e as ancas estavam meio estranhos (acho que podemos meter uma cabeca)
+## Organização
 
-# Simulacao de swing de golfe
-
-Simulacao simplificada de um swing em MuJoCo. O modelo inclui a bacia, o
-tronco, os bracos, as pernas articuladas, um taco e uma bola. A animacao abre
-uma janela; o modo de teste corre sem interface grafica e verifica o impacto.
-
-## Requisitos e execucao no WSL
+| `models/golfer.xml` | Modelo MuJoCo comentado do jogador, do taco e da bola |
+| `main.py` | Alvos das articulações ao longo do swing, simulação e visualizador |
+| `tests.py` | Os sete testes da Task 2 |
+| `results/` | Resultados dos testes |
+| `readme`   | Instruções, graus de liberdade e simplificações |
+| `Task2.md` | Descrição dos testes e resultados |
+| `Task3.md` | Comentário aos resultados |
 
 
-Este modo precisa de uma sessao grafica disponivel no WSL, por exemplo WSLg.
-Para testar sem abrir uma janela, retirar esta opção nas proximas iterações so usei e esqueci de remover para o teste dos valores 
+## Requisitos
+São necessários Python 3.10 ou mais recente, MuJoCo 3.x e NumPy. O matplotlib é opcional e serve para gerar os gráficos. Os resultados foram obtidos com MuJoCo 3.15.0, NumPy 2.2.6 e matplotlib 3.10.9.
 
 ```bash
-python main.py --test --output /tmp/golf-results.csv 
+python3 -m venv .venv
+source .venv/bin/activate          # no Windows: .venv\Scripts\activate
+pip install mujoco numpy matplotlib
 ```
 
-O teste imprime se houve impacto, o instante e a velocidade da cabeca do taco,
-e guarda as medicoes no CSV indicado. O resultado usa `/tmp` para nao criar
-ficheiros de teste dentro do projeto.
+## Execução
+**Ver o swing** (abre uma janela; no WSL é preciso o WSLg). O swing dura 2 s e repete-se até a janela ser fechada:
+
+```bash
+python main.py
+```
+
+**Simular um swing sem janela** e mostrar as medições do impacto (se houve impacto, o instante e a velocidade da cabeça do taco):
+
+```bash
+python main.py --test --output results/swing.csv
+```
+
+
+```bash
+python tests.py              # os sete testes (o teste 1 demora mais: 180 simulações)
+python tests.py --only 2 4   # só alguns testes
+python tests.py --seeds 10   # mais repetições no teste de perturbações
+```
+
+O modelo também se pode abrir na aplicação Simulate do MuJoCo (`python -m mujoco.viewer --mjcf models/golfer.xml`). Nesse caso não há alvos, por isso o jogador não executa o swing, mas os atuadores podem ser movidos à mão no painel *Control*.
+
 
 ## Graus de liberdade
+O modelo tem doze articulações atuadas, todas rotacionais. A bola tem uma articulação livre (6 graus de liberdade, sem atuação).
 
-O modelo tem doze articulacoes controladas, todas do tipo rotacional:
 
-| Articulacao | Eixo | Funcao aproximada |
-| --- | --- | --- |
-| Rotacao da bacia (`hip_rotation`) | Z | Rotacao axial da bacia durante o swing |
-| Flexao da anca (`hip_flexion`) | Y | Inclinacao do tronco relativamente a bacia |
-| Rotacao do tronco (`torso_rotation`) | Z | Rotacao do tronco relativamente a bacia |
-| Elevacao/abducao do ombro direito (`right_shoulder_lift`) | X | Abre e eleva lateralmente o braco que segura o taco |
-| Ombro direito (`right_shoulder`) | Y | Movimento do braco que segura o taco |
-| Cotovelo direito (`right_elbow`) | Y | Flexao/extensao do braco que segura o taco |
-| Articulacao do pulso direito (`right_wrist_hinge`) | Y | Inclina o taco relativamente a mao para criar atraso no backswing e liberta-o na descida |
-| Elevacao/abducao do ombro esquerdo (`left_shoulder_lift`) | X | Abre e eleva lateralmente o braco de apoio |
-| Ombro esquerdo (`left_shoulder`) | Y | Movimento do braco de apoio |
-| Cotovelo esquerdo (`left_elbow`) | Y | Flexao/extensao do braco de apoio |
-| Joelho esquerdo (`left_knee`) | Y | Flexao/extensao do joelho esquerdo |
-| Joelho direito (`right_knee`) | Y | Flexao/extensao do joelho direito |
+| Rotação da bacia (`hip_rotation`) | Z | Rotação axial da bacia durante o swing |
+| Flexão da anca (`hip_flexion`) | Y | Inclinação do tronco em relação à bacia |
+| Rotação do tronco (`torso_rotation`) | Z | Rotação do tronco em relação à bacia |
+| Elevação/abdução do ombro direito (`right_shoulder_lift`) | X | Abre e eleva lateralmente o braço que segura o taco |
+| Ombro direito (`right_shoulder`) | Y | Flexão/extensão do braço que segura o taco |
+| Cotovelo direito (`right_elbow`) | Y | Flexão/extensão do braço que segura o taco |
+| Pulso direito (`right_wrist_hinge`) | Y | Arma o taco no backswing e liberta-o na descida |
+| Elevação/abdução do ombro esquerdo (`left_shoulder_lift`) | X | Abre e eleva lateralmente o braço de apoio |
+| Ombro esquerdo (`left_shoulder`) | Y | Flexão/extensão do braço de apoio |
+| Cotovelo esquerdo (`left_elbow`) | Y | Flexão/extensão do braço de apoio |
+| Joelho esquerdo (`left_knee`) | Y | Flexão/extensão do joelho esquerdo |
+| Joelho direito (`right_knee`) | Y | Flexão/extensão do joelho direito |
 
-Os alvos percorrem a preparacao, o takeaway, o backswing, a descida, o impacto
-e a finalizacao. No backswing, a bacia roda moderadamente para tras; na descida,
-comeca a abrir para o alvo antes do tronco. O cotovelo direito dobra mais no
-topo, enquanto o esquerdo se mantem relativamente estendido. O pulso roda para
-elevar o taco e liberta-o na descida. A bola esta posicionada para o contacto
-ocorrer durante o avanco ascendente da cabeca do taco, e nao no seu regresso.
-Os alvos dos ombros procuram manter as maos proximas sem as ligar
-mecanicamente. A flexao da anca aumenta na aproximacao ao impacto. O joelho da
-frente flete mais na subida e estende na descida; o joelho de tras mantem a
-flexao na subida e flete mais na finalizacao.
+Cada articulação é movida por um servo de posição (`position`) que segue um ângulo-alvo calculado em `main.py`. Os alvos percorrem a preparação, o takeaway, o backswing, a descida, o impacto e a finalização:
 
-## Simplificacoes assumidas
+- **Bacia e tronco.** No backswing, a bacia roda moderadamente para trás. Na descida, começa a abrir para o alvo antes do tronco. A flexão da anca aumenta na aproximação ao impacto.
+- **Braços e pulso.** O cotovelo direito dobra mais no topo, enquanto o esquerdo se mantém relativamente estendido. O pulso arma o taco na subida e liberta-o na descida. Os alvos dos ombros procuram manter as mãos próximas, sem as ligar mecanicamente.
+- **Pernas.** O joelho da frente dobra mais na subida e estende-se na descida. O joelho de trás mantém a flexão na subida e dobra mais na finalização.
+- **Bola.** Está posicionada para o contacto acontecer quando a cabeça do taco já está a subir.
 
-- O corpo e composto por formas geometricas simples; nao representa com
-  precisao a anatomia nem as proporcoes individuais de um jogador.
-- A bacia esta presa ao mundo por uma articulacao de rotacao. Nao ha
-  translacao do corpo, deslocamento lateral nem articulacoes independentes
-  para as duas ancas.
-- A flexao da anca e representada por uma unica articulacao entre a bacia e o
-  tronco. A coluna, o pescoco e a cabeca nao se articulam separadamente.
-- Cada perna tem uma articulacao no joelho. Os pes sao rigidos, nao colidem
-  com o chao e nao existem articulacoes nos tornozelos. O corpo esta ancorado
-  pela bacia, pelo que os pes sem colisao nao controlam o equilibrio.
-- Cada braco tem duas articulacoes no ombro (elevacao/abducao e
-  flexao/extensao) e uma no cotovelo. O pulso direito tem uma articulacao
-  rotacional simplificada; o pulso esquerdo e os dedos nao sao articulados.
-- As duas maos sao geometrias independentes, sem restricao mecanica que as
-  mantenha juntas; as poses dos bracos apenas procuram aproxima-las.
-- O taco e liso e ligado a mao direita por uma articulacao rotacional simples
-  no pulso. A haste e representada por uma unica geometria continua, sem uma
-  pega separada nem flexibilidade do taco.
-- A haste nao participa nas colisoes. A cabeca do taco e uma caixa com uma
-  inclinacao fixa simplificada para dar componente ascendente ao impacto; pode
-  colidir com o chao e com a bola, que e modelada como uma esfera. O voo da
-  bola nao esta calibrado para reproduzir uma tacada real.
-- Os atuadores seguem posicoes-alvo; nao se modelam musculos, forcas humanas,
-  equilibrio ou transferencia de peso com detalhe biomecanico.
+## Simplificações e o seu impacto no realismo
 
-Estas escolhas permitem testar uma sequencia visual e o contacto taco-bola,
-mas nao pretendem prever o desempenho de um jogador real.
+- **Geometria.** O corpo é feito de formas geométricas simples, com massas típicas de um adulto. Não representa com precisão a anatomia nem as proporções de um jogador real.
+- **Bacia fixa.** A bacia está presa ao mundo por uma articulação de rotação. Não há translação do corpo, deslocamento lateral, transferência de peso nem equilíbrio, e não há articulações independentes para as duas ancas. As pernas quase não influenciam o taco (Teste 1 da Task 2).
+- **Tronco.** A flexão da anca é representada por uma única articulação entre a bacia e o tronco. A coluna, o pescoço e a cabeça não se articulam separadamente.
+- **Pernas.** Cada perna tem uma articulação no joelho. Os pés são rígidos, não têm tornozelos e não colidem com o chão.
+- **Braços.** Cada ombro tem 2 graus de liberdade (um ombro real tem 3) e cada cotovelo tem 1. O pulso direito tem uma única articulação; o pulso esquerdo e os dedos não são articulados.
+- **Mãos.** A mão esquerda não está ligada ao taco nem à mão direita; as poses só procuram aproximá-las. A mão esquerda pode tocar no antebraço direito e perturbar o taco por contacto.
+- **Taco.** O taco é rígido, sem flexão da haste, e está ligado só à mão direita. A haste é uma única geometria contínua, sem pega separada, e não colide com nada. A face de impacto é uma caixa fina com uma inclinação fixa e uma massa de 0,10 kg (uma cabeça real tem cerca de 0,27 kg).
+- **Contacto.** O contacto usa os parâmetros do MuJoCo por omissão, que são moles e dissipam a energia do choque. O contacto taco-bola dura demasiado tempo e a bola não ressalta, por isso o voo da bola não reproduz uma tacada real (Testes 2 e 6 da Task 2).
+- **Atuação.** Os atuadores seguem ângulos-alvo, sem limite de binário. Não se modelam músculos nem forças humanas, e o pulso chega a pedir binários sobre-humanos (Teste 3 da Task 2).
+- **Atrito nas articulações.** É modelado apenas por amortecimento viscoso (`damping`), sem atrito seco.
+
+Estas escolhas permitem estudar a sequência do movimento, o ritmo do swing, o contacto taco-bola e o efeito de perturbações em cada articulação. Não permitem prever a distância nem a direção de uma tacada real. A Task 3 discute estes limites e propõe melhorias.

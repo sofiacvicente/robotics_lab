@@ -1,9 +1,3 @@
-# Simulação de um swing de golfe em MuJoCo
-
-Esta pasta contém a simulação simplificada de um swing de golfe em MuJoCo e Python. O modelo inclui a bacia, o tronco com a cabeça, os braços, as pernas articuladas, o taco e a bola.
-
-## Organização
-
 | `models/golfer.xml` | Modelo MuJoCo comentado do jogador, do taco e da bola |
 | `main.py` | Alvos das articulações ao longo do swing, simulação e visualizador |
 | `tests.py` | Os sete testes da Task 2 |
@@ -69,7 +63,7 @@ Cada articulação é movida por um servo de posição (`position`) que segue um
 - **Pernas.** O joelho da frente dobra mais na subida e estende-se na descida. O joelho de trás mantém a flexão na subida e dobra mais na finalização.
 - **Bola.** Está posicionada para o contacto acontecer quando a cabeça do taco já está a subir.
 
-## Simplificações e o seu impacto no realismo
+## Simplificações
 
 - **Geometria.** O corpo é feito de formas geométricas simples, com massas típicas de um adulto. Não representa com precisão a anatomia nem as proporções de um jogador real.
 - **Bacia fixa.** A bacia está presa ao mundo por uma articulação de rotação. Não há translação do corpo, deslocamento lateral, transferência de peso nem equilíbrio, e não há articulações independentes para as duas ancas. As pernas quase não influenciam o taco (Teste 1 da Task 2).

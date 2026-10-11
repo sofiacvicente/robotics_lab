@@ -4,6 +4,7 @@ Todos os testes estão em `tests.py` e correm em Python, sem interface gráfica,
 
 **Contacto da bola.** Na primeira versão, todos os contactos usavam os parâmetros do MuJoCo por omissão (`solref="0.02 1"`). Os Testes 6 e 7 mostraram que este contacto dissipa quase toda a energia do choque. Por isso, a bola passou a ter um contacto rígido, definido diretamente pela rigidez e pelo amortecimento (`solref="-200000 -70"`, coeficiente de restituição *e* ≈ 0,78). Como o MuJoCo usa o mais rígido dos dois parâmetros, os contactos bola-taco e bola-chão ficam ambos rígidos. O contacto entre o taco e o chão ficou com os valores por omissão: com um contacto rígido, a face do taco, que começa 0,6 mm dentro do chão, era projetada e vibrava no início do swing. Os valores obtidos com o contacto por omissão aparecem na Tabela 2 para comparação.
 
+
 ## Teste 1 — Perturbações em cada grau de liberdade
 
 **Objetivo.**
